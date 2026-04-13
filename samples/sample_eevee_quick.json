@@ -1,0 +1,131 @@
+{
+  "width": 6.0,
+  "depth": 8.0,
+  "height": 2.7,
+  "style": "white_wood",
+  "circulation": "clockwise",
+  "walls": [],
+  "counters": [
+    {
+      "id": "counter_1",
+      "position": [
+        1.5,
+        1.0,
+        0.0
+      ],
+      "rotation_z": 0.0,
+      "width": 1.5,
+      "depth": 0.6,
+      "height": 0.9,
+      "material": "wood_accent"
+    }
+  ],
+  "panels": [
+    {
+      "id": "panel_1",
+      "position": [
+        1.5,
+        7.9,
+        1.2
+      ],
+      "rotation_z": 0.0,
+      "width": 1.0,
+      "height": 2.4,
+      "thickness": 0.05,
+      "material": "white_plaster"
+    },
+    {
+      "id": "panel_2",
+      "position": [
+        3.0,
+        7.9,
+        1.2
+      ],
+      "rotation_z": 0.0,
+      "width": 1.0,
+      "height": 2.4,
+      "thickness": 0.05,
+      "material": "white_plaster"
+    },
+    {
+      "id": "panel_3",
+      "position": [
+        4.5,
+        7.9,
+        1.2
+      ],
+      "rotation_z": 0.0,
+      "width": 1.0,
+      "height": 2.4,
+      "thickness": 0.05,
+      "material": "white_plaster"
+    }
+  ],
+  "monitors": [
+    {
+      "id": "monitor_1",
+      "position": [
+        2.0,
+        4.0,
+        1.5
+      ],
+      "rotation_z": 0.0,
+      "width": 0.8,
+      "height": 0.5,
+      "depth": 0.05,
+      "material": "dark_screen"
+    },
+    {
+      "id": "monitor_2",
+      "position": [
+        4.0,
+        4.0,
+        1.5
+      ],
+      "rotation_z": 0.0,
+      "width": 0.8,
+      "height": 0.5,
+      "depth": 0.05,
+      "material": "dark_screen"
+    }
+  ],
+  "cameras": [
+    {
+      "id": "cam_top",
+      "type": "top_view",
+      "location": [
+        3.0,
+        4.0,
+        10.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "focal_length": 50.0
+    },
+    {
+      "id": "cam_visitor",
+      "type": "visitor_view",
+      "location": [
+        3.0,
+        -2.5,
+        1.7
+      ],
+      "rotation": [
+        1.309,
+        0.0,
+        0.0
+      ],
+      "focal_length": 35.0
+    }
+  ],
+  "render_output_dir": "./output",
+  "render": {
+    "resolution_x": 1280,
+    "resolution_y": 720,
+    "engine": "BLENDER_EEVEE_NEXT",
+    "samples": 16
+  }
+}

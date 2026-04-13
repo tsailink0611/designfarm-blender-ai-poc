@@ -1,25 +1,27 @@
 """
 Blenderシーン生成メインモジュール
-LayoutSpecを受け取り、シーンを構築してPNGを2枚出力する
+LayoutSpec JSONを受け取り、シーンを構築してPNGを2枚出力する
 このスクリプトはBlenderの--pythonオプション経由で実行する
 
 実行方法:
     blender --background --python src/blender/generate_scene.py -- path/to/layout.json
+
+注意: このモジュールはBlender内部Pythonで動作するため、pydanticに依存しない
 """
 from __future__ import annotations
 import json
 import sys
 import math
+import logging
 from pathlib import Path
 
 import bpy
 
-# srcディレクトリをPYTHONPATHに追加（Blender内からインポートするため）
-_src_dir = str(Path(__file__).resolve().parent.parent.parent)
-if _src_dir not in sys.path:
-    sys.path.insert(0, _src_dir)
+# プロジェクトルートをPYTHONPATHに追加（src/utils等のインポートのため）
+_project_root = str(Path(__file__).resolve().parent.parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-from src.parser.schema import LayoutSpec
 from src.blender.primitives import (
     clear_scene, add_floor, add_wall,
     add_counter, add_panel, add_monitor
@@ -27,9 +29,8 @@ from src.blender.primitives import (
 from src.blender.materials import apply_materials_to_scene
 from src.blender.camera_setup import setup_cameras, render_from_camera
 from src.utils.paths import resolve_output_dir, blender_safe_path
-from src.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _add_ambient_light(width: float, depth: float, height: float) -> None:
@@ -41,96 +42,103 @@ def _add_ambient_light(width: float, depth: float, height: float) -> None:
     light.data.size = max(width, depth) * 0.8
 
 
-def _build_default_walls(spec: LayoutSpec) -> None:
-    """LayoutSpecにwallsが空の場合、部屋の4壁を自動生成する"""
-    w, d, h = spec.width, spec.depth, spec.height
+def _build_default_walls(width: float, depth: float, height: float) -> None:
+    """wallsが空の場合、部屋の4壁を自動生成する"""
     t = 0.1
     walls = [
-        # 奥壁
-        dict(wall_id="back",   position=[w/2, d, h/2], rotation_z=0.0,                width=w, height=h, thickness=t),
-        # 手前壁
-        dict(wall_id="front",  position=[w/2, 0, h/2], rotation_z=0.0,                width=w, height=h, thickness=t),
-        # 左壁
-        dict(wall_id="left",   position=[0, d/2, h/2], rotation_z=math.radians(90),   width=d, height=h, thickness=t),
-        # 右壁
-        dict(wall_id="right",  position=[w, d/2, h/2], rotation_z=math.radians(90),   width=d, height=h, thickness=t),
+        dict(wall_id="back",  position=[width/2, depth, height/2], rotation_z=0.0,                 width=width, height=height, thickness=t),
+        dict(wall_id="front", position=[width/2, 0,     height/2], rotation_z=0.0,                 width=width, height=height, thickness=t),
+        dict(wall_id="left",  position=[0,       depth/2, height/2], rotation_z=math.radians(90),  width=depth, height=height, thickness=t),
+        dict(wall_id="right", position=[width,   depth/2, height/2], rotation_z=math.radians(90),  width=depth, height=height, thickness=t),
     ]
     for wall in walls:
         add_wall(**wall)
 
 
-def generate_scene(spec: LayoutSpec) -> list[str]:
+def generate_scene(spec: dict) -> list[str]:
     """
-    LayoutSpecからBlenderシーンを構築し、PNG2枚を出力する
-    Returns: 生成されたPNGファイルパスのリスト
+    LayoutSpec dictからBlenderシーンを構築し、PNG2枚を出力する
+    pydanticを使わず、生のdictで動作する
     """
-    logger.info(f"シーン生成開始: {spec.width}m x {spec.depth}m")
+    width  = float(spec.get("width",  6.0))
+    depth  = float(spec.get("depth",  8.0))
+    height = float(spec.get("height", 2.7))
+    style  = spec.get("style", "white_wood")
+    render_cfg = spec.get("render", {})
+
+    logger.info(f"シーン生成開始: {width}m x {depth}m")
 
     clear_scene()
 
     # 床
-    add_floor(spec.width, spec.depth)
+    add_floor(width, depth)
 
     # 壁（仕様にあれば使用、なければ自動生成）
-    if spec.walls:
-        for wall in spec.walls:
+    walls = spec.get("walls", [])
+    if walls:
+        for w in walls:
             add_wall(
-                wall_id=wall.id,
-                position=wall.position,
-                rotation_z=wall.rotation_z,
-                width=wall.width,
-                height=wall.height,
-                thickness=wall.thickness,
-                material_name=wall.material
+                wall_id=w["id"],
+                position=w.get("position", [0.0, 0.0, 0.0]),
+                rotation_z=float(w.get("rotation_z", 0.0)),
+                width=float(w.get("width", 6.0)),
+                height=float(w.get("height", 2.7)),
+                thickness=float(w.get("thickness", 0.1)),
+                material_name=w.get("material", "white_plaster"),
             )
     else:
-        _build_default_walls(spec)
+        _build_default_walls(width, depth, height)
 
     # カウンター
-    for counter in spec.counters:
+    for c in spec.get("counters", []):
         add_counter(
-            counter_id=counter.id,
-            position=counter.position,
-            rotation_z=counter.rotation_z,
-            width=counter.width,
-            depth=counter.depth,
-            height=counter.height,
-            material_name=counter.material
+            counter_id=c["id"],
+            position=c.get("position", [0.0, 0.0, 0.0]),
+            rotation_z=float(c.get("rotation_z", 0.0)),
+            width=float(c.get("width", 1.5)),
+            depth=float(c.get("depth", 0.6)),
+            height=float(c.get("height", 0.9)),
+            material_name=c.get("material", "wood_accent"),
         )
 
     # パネル
-    for panel in spec.panels:
+    for p in spec.get("panels", []):
         add_panel(
-            panel_id=panel.id,
-            position=panel.position,
-            rotation_z=panel.rotation_z,
-            width=panel.width,
-            height=panel.height,
-            thickness=panel.thickness,
-            material_name=panel.material
+            panel_id=p["id"],
+            position=p.get("position", [0.0, 0.0, 0.0]),
+            rotation_z=float(p.get("rotation_z", 0.0)),
+            width=float(p.get("width", 1.0)),
+            height=float(p.get("height", 2.4)),
+            thickness=float(p.get("thickness", 0.05)),
+            material_name=p.get("material", "white_plaster"),
         )
 
     # モニター
-    for monitor in spec.monitors:
+    for m in spec.get("monitors", []):
         add_monitor(
-            monitor_id=monitor.id,
-            position=monitor.position,
-            rotation_z=monitor.rotation_z,
-            width=monitor.width,
-            height=monitor.height,
-            depth=monitor.depth,
-            material_name=monitor.material
+            monitor_id=m["id"],
+            position=m.get("position", [0.0, 0.0, 0.0]),
+            rotation_z=float(m.get("rotation_z", 0.0)),
+            width=float(m.get("width", 0.8)),
+            height=float(m.get("height", 0.5)),
+            depth=float(m.get("depth", 0.05)),
+            material_name=m.get("material", "dark_screen"),
         )
 
     # ライト
-    _add_ambient_light(spec.width, spec.depth, spec.height)
+    _add_ambient_light(width, depth, height)
 
     # マテリアル適用
-    apply_materials_to_scene(spec.style)
+    apply_materials_to_scene(style)
 
     # カメラ配置・レンダリング
-    output_dir = resolve_output_dir(spec.render_output_dir)
-    cam_objects = setup_cameras(spec.cameras, spec.width, spec.depth, spec.height)
+    output_dir = resolve_output_dir(spec.get("render_output_dir", "./output"))
+    cam_objects = setup_cameras(spec.get("cameras", []), width, depth, height)
+
+    resolution_x = int(render_cfg.get("resolution_x", 1280))
+    resolution_y = int(render_cfg.get("resolution_y", 720))
+    engine       = render_cfg.get("engine", "CYCLES")
+    samples      = int(render_cfg.get("samples", 64))
 
     output_paths = []
     for cam_id, cam_obj in cam_objects.items():
@@ -139,10 +147,10 @@ def generate_scene(spec: LayoutSpec) -> list[str]:
         render_from_camera(
             cam_obj=cam_obj,
             output_path=output_path,
-            resolution_x=spec.render.resolution_x,
-            resolution_y=spec.render.resolution_y,
-            engine=spec.render.engine,
-            samples=spec.render.samples
+            resolution_x=resolution_x,
+            resolution_y=resolution_y,
+            engine=engine,
+            samples=samples,
         )
         output_paths.append(output_path)
 
@@ -155,12 +163,8 @@ def main() -> None:
     コマンドライン引数からJSONファイルパスを受け取り、シーン生成を実行する
     使用方法: blender --background --python generate_scene.py -- path/to/layout.json
     """
-    # Blenderの引数区切り「--」以降を取得
     argv = sys.argv
-    if "--" in argv:
-        args = argv[argv.index("--") + 1:]
-    else:
-        args = []
+    args = argv[argv.index("--") + 1:] if "--" in argv else []
 
     if not args:
         print("エラー: JSONファイルパスを指定してください", file=sys.stderr)
@@ -173,9 +177,8 @@ def main() -> None:
         sys.exit(1)
 
     with open(json_path, encoding="utf-8") as f:
-        data = json.load(f)
+        spec = json.load(f)
 
-    spec = LayoutSpec(**data)
     output_paths = generate_scene(spec)
     print(f"生成完了: {', '.join(output_paths)}")
 
