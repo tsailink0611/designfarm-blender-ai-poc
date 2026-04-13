@@ -19,57 +19,48 @@
 
 ---
 
-## Phase 2: MCPサーバー化
+## Phase 2: テンプレート拡張
 
-**目標:** Claude Desktop / ChatGPT等からツール呼び出しできるMCPサーバーとして公開する
+**目標:** 実案件で使える什器・空間パターンを増やし、提案品質を上げる
 
 ### 実装内容
-- [ ] MCP Server実装（Python / FastMCP）
-  - `generate_layout(instruction: str) → image_url: str` ツール定義
-  - JSON入力バリデーション → Blender実行 → 画像アップロード → URL返却
-- [ ] Cloudflare Workers / R2 連携
-  - 生成PNG → R2バケットへアップロード
-  - CDN経由のパブリックURL返却
-- [ ] LLM APIへのパーサー差し替え
-  - Claude API (claude-sonnet) でより精度の高いJSON変換
-  - OpenAI API対応（差し替え可能なインターフェース設計済み）
-- [ ] 入力バリデーション・エラーハンドリング強化
-- [ ] Blender実行のタイムアウト制御
-
-### 参考実装
-- [blender-mcp](https://github.com/ahujasid/blender-mcp) — Blender MCP先行事例
-
-### アーキテクチャ（予定）
-
-```
-Claude Desktop
-  └─ MCP Client
-       └─ HTTP → MCP Server (Cloudflare Workers / Python)
-                    └─ generate_layout(instruction)
-                         ├─ Claude API: 指示文 → JSON
-                         ├─ Blender: JSON → PNG
-                         └─ R2 Upload → CDN URL返却
-```
+- [ ] 什器タイプの追加
+  - `meeting_table`（商談テーブル）
+  - `shelf`（棚・ラック）
+  - `sofa`（応接ソファ）
+  - `signage`（サイネージスタンド）
+- [ ] 空間テンプレートの整備
+  - 展示会ブース（3m×3m / 6m×6m / 6m×9m）
+  - ショールーム（小規模・中規模）
+  - 店舗仮レイアウト（物販・サービス業）
+  - 家具配置パターン
+- [ ] マテリアルパターン拡張
+  - 床材（フローリング・タイル・カーペット）
+  - 壁面（クロス・ガラス・コンクリート）
+- [ ] 出力形式の追加
+  - `.blend` ファイル保存オプション
+  - EEVEE / CYCLES 切り替え（速度 vs 品質）
+- [ ] blender-mcp 連携
+  - 起動中のBlenderをClaude Codeからリアルタイム操作
+  - 参考: [blender-mcp](https://github.com/ahujasid/blender-mcp)
 
 ---
 
-## Phase 3: 協力会社向け提案資料生成・案件提案連携
+## Phase 3: MCP / Agent化・提案連携
 
 **目標:** 営業プロセスに組み込み、提案フロー全体を自動化する
 
 ### 実装内容
+- [ ] MCPサーバー実装
+  - `generate_layout(instruction: str) → image_url: str` ツール定義
+  - Claude API: 指示文 → JSON変換（テンプレートパーサーから差し替え）
+  - Blender実行 → PNG → Cloudflare R2 → CDN URL返却
 - [ ] 提案PDF自動生成
   - PNG + スペック表 + コメントをPDF化
   - 顧客名・案件名・作成日の自動入力
 - [ ] LINE / Slack 連携
   - 生成されたPNG・PDFを営業担当へ自動送信
   - 顧客へのプレビュー共有リンク生成
-- [ ] 内装テンプレートライブラリ化
-  - 業種別テンプレート（展示会 / ショールーム / 店舗内装）
-  - テンプレートから微調整するワークフロー
-- [ ] 見積もり連携
-  - レイアウトJSONから資材数量・概算見積もりへの変換
-  - 見積書PDFの自動生成
 - [ ] n8n ワークフロー統合
   - 問い合わせ受信 → 自動プレビュー生成 → 営業担当へ通知
   - NFCタグスキャン → 案件登録 → Blenderプレビュー生成のフロー
