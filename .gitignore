@@ -4,6 +4,8 @@ __pycache__/
 .env
 output/*.png
 output/*.blend
+# Main scene blend file (commit this - needed to continue work)
+# villa_atrium.blend is intentionally tracked
 *.blend1
 .venv/
 venv/
@@ -13,3 +15,9 @@ build/
 .pytest_cache/
 .DS_Store
 Thumbs.db
+
+# Downloaded Poly Haven assets (re-downloadable)
+assets/models/*.blend
+assets/models/*.gltf
+assets/models/textures/
+assets/hdri/
